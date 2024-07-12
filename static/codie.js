@@ -1,4 +1,5 @@
 import { contentFilterText, stopAtLastPeriod, removeBlankLines, toBase64, uploadFile } from "./content-filter.js";
+import { elevenlabs_api_key, hugging_face_key } from "./keys.js";
 
 const micButton = document.querySelector('.mic-btn');
 const entry = document.querySelector(".image-gen-entry");
@@ -14,34 +15,21 @@ const imgPromtString = [
 ]
 const records = [];
 let mediaRecorder;
-
-let elevenlabs_api_key; 
-let hugging_face_key; 
-
-fetch('/env')
-    .then(response => response.json())
-    .then(data => {
-        hugging_face_key= data.hugging_face_key;
-        elevenlabs_api_key = data.elevenlabs_api_key; 
-    })
-    .catch(error => {
-        console.error('Error fetching environment variables:', error);
-    });
-
 codieStart();
 
 function addBubbleEvent(bubble){
     bubble.addEventListener('click', () => {
         const options = {
             method: 'POST',
-            headers: {
+            headers:{
                 'xi-api-key': elevenlabs_api_key,
                 'Content-Type': 'application/json'
             },
             body: `{"text": "${bubble.innerHTML.trim()}"}`,
             type: "arrayBuffer"
-        };
-        fetch('https://api.elevenlabs.io/v1/text-to-speech/dfZGXKiIzjizWtJ0NgPy', options)
+        }
+        
+        fetch('https://api.elevenlabs.io/v1/text-to-speech/2bk7ULW9HfwvcIbMWod0', options)
             .then(async (response) => {
                 const arrayBuffer = await response.arrayBuffer();
                 const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
@@ -49,30 +37,29 @@ function addBubbleEvent(bubble){
                 const audioElement = new Audio(audioUrl);
                 audioElement.play();
             })
-            .catch(err => console.error(err));
-    });
+    })
+
 }
 
 async function audioToText(filename) {
-    fileReader.readAsArrayBuffer(filename);
-    const data = filename;
+    fileReader.readAsArrayBuffer(filename)
+    const data = filename
     const response = await fetch(
-        "https://api-inference.huggingface.co/models/openai/whisper-large-v3",
-        {
-            headers: { Authorization: `Bearer ${hugging_face_key}` },
-            method: "POST",
-            body: data,
-        }
-    );
-    const result = await response.json();
-    return result;
+		"https://api-inference.huggingface.co/models/openai/whisper-large-v3",
+		{
+			headers: { Authorization: `Bearer ${hugging_face_key}` },
+			method: "POST",
+			body: data,
+		}
+	);
+	const result = await response.json();
+	return result;
 }
 
 fileReader.onload = function (event) {
     const arrayBuffer = event.target.result;
 };
 
-//could use Gemma
 async function textGen(data) {
     const response = await fetch(
         "https://api-inference.huggingface.co/models/google/gemma-1.1-7b-it",
@@ -91,7 +78,7 @@ async function textGen(data) {
 
 async function imageGen(data) {
     const response = await fetch(
-        "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1",
+        "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
         {
             headers: {
                 Authorization: `Bearer ${hugging_face_key}`,
@@ -183,48 +170,55 @@ async function mainCall(userValue) {
                 frame.appendChild(aiOutput);
                 const imgCon = document.createElement('div');
                 const img = document.createElement('img');
-                imageGen({ "inputs": userValue }).then(async (response) => {
+                
+                imageGen({ "inputs": userValue }).then( async (response) => {
                     let base64 = await toBase64(response)
-                    uploadFile(base64).then((url) => {
-                        img.src = url;
-                        img.classList.add('image-generated-codie');
-                        imgCon.classList.add('image-bubble');
-                        imgCon.appendChild(img);
-                        frame.appendChild(imgCon);
+                    uploadFile(base64).then( (url) => {
+                        img.src = url
+                        img.classList.add('image-generated-codie')
+                        imgCon.classList.add('image-bubble')
+                        imgCon.appendChild(img)
+                        frame.appendChild(imgCon)
+
                         aiOutput.innerHTML = 'Here is your image!'
-                        frame.scrollTop = frame.scrollHeight;
-                        resetPlaceholder();
-                        records.push("User: " + userInput.innerHTML);
-                        records.push(img.src);
-                        records.push("Ai: " + aiOutput.innerHTML);
-                        submitButton.disabled = false;
-                        micButton.disabled = false; 
+                        frame.scrollTop = frame.scrollHeight
+                        resetPlaceholder()
+
+                        records.push("User: " + userInput.innerHTML)
+                        records.push(img.src)
+                        records.push("Ai: " + aiOutput.innerHTML)
+                        submitButton.disabled = false
+                        micButton.disabled = false
                     })
-                });
+                })
             } else {
-                textGen({ "inputs": userValue, "parameters": { "return_full_text": false } }).then(async (response) => {
-                    let aiContentValue = await contentFilterText(response[0].generated_text);
-                    if (aiContentValue == 1) {
-                        frame.appendChild(userInput);
-                        frame.appendChild(aiOutput);
-                        userInput.innerHTML = userValue;
-                        let cutOff = stopAtLastPeriod(response[0].generated_text);
-                        let noBlankLines = removeBlankLines(cutOff);
-                        aiOutput.innerHTML = noBlankLines;
-                        aiOutput.classList.add("custom-cursor");
-                        addBubbleEvent(aiOutput); 
-                        frame.scrollTop = frame.scrollHeight;
-                        resetPlaceholder();
-                        records.push("User: " + userInput.innerHTML);
-                        records.push("Ai: " + noBlankLines);
-                        submitButton.disabled = false;
-                        micButton.disabled = false; 
-                    } else {
-                        setPlaceholder(aiContentValue);
-                        submitButton.disabled = false;
-                        micButton.disabled = false; 
-                    }
-                });
+                textGen({ "inputs": userValue, "parameters": { "return_full_text": false } })
+                    .then(async (response) => {
+                        let aiContentValue = await contentFilterText(response[0].generated_text)
+                        if(aiContentValue == 1){
+                            frame.appendChild(userInput)
+                            frame.appendChild(aiOutput)
+                            userInput.innerHTML = userValue
+                            let cutOff = stopAtLastPeriod(response[0].generated_text)
+                            let noBlankLines = removeBlankLines(cutOff)
+                            aiOutput.innerHTML = noBlankLines
+
+                            aiOutput.classList.add("custom-cursor")
+                            addBubbleEvent(aiOutput)
+
+                            frame.scrollTop = frame.scrollHeight
+                            resetPlaceholder()
+                            records.push("User: " + userInput.innerHTML)
+                            records.push("Ai: " + noBlankLines)
+
+                            submitButton.disabled = false;
+                            micButton.disabled = false; 
+                        }else{
+                            setPlaceholder(aiContentValue)
+                            submitButton.disabled = false
+                            micButton.disabled = false
+                        }
+                    })
             }
         } else {
             setPlaceholder(contentValue);
