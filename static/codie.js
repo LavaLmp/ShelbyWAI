@@ -35,13 +35,13 @@ function addBubbleEvent(bubble){
         const options = {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${hugging_face_key}`,
+                'xi-api-key': elevenlabs_api_key,
                 'Content-Type': 'application/json'
             },
             body: `{"text": "${bubble.innerHTML.trim()}"}`,
             type: "arrayBuffer"
         };
-        fetch('https://api-inference.huggingface.co/models/myshell-ai/MeloTTS-English', options)
+        fetch('https://api.elevenlabs.io/v1/text-to-speech/dfZGXKiIzjizWtJ0NgPy', options)
             .then(async (response) => {
                 const arrayBuffer = await response.arrayBuffer();
                 const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
